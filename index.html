@@ -65,6 +65,43 @@
 </head>
 <body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 min-h-screen flex flex-col text-slate-800">
 
+    <!-- Terms & Auto-Activation Consent Modal for SMPN 29 Students -->
+    <div id="consentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-indigo-100 space-y-5 transform transition-all animate-bounce-subtle">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-3xl p-0.5 mx-auto shadow-lg">
+                    <div class="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-3xl">
+                        🏫
+                    </div>
+                </div>
+                <h3 class="font-display font-bold text-xl text-slate-800">Selamat Datang di Sahabat BK 29!</h3>
+                <p class="text-xs text-slate-500">Layanan Bimbingan Konseling AI Resmi SMPN 29 Banjarmasin</p>
+            </div>
+
+            <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 text-xs text-indigo-950 space-y-2">
+                <p class="font-bold text-indigo-700 flex items-center">
+                    <i class="fa-solid fa-shield-halved mr-1.5 text-indigo-600"></i> Ketentuan Penggunaan Layanan:
+                </p>
+                <ul class="list-disc list-inside space-y-1 text-slate-700 leading-relaxed">
+                    <li>Layanan ini disediakan gratis untuk seluruh siswa SMPN 29 Banjarmasin.</li>
+                    <li>Semua cerita dan curhatan kamu dijamin rahasia dan aman 🔒.</li>
+                    <li>Akses koneksi AI diaktifkan secara otomatis tanpa perlu mengetik kode apapun.</li>
+                </ul>
+            </div>
+
+            <div class="pt-1">
+                <button onclick="acceptTermsAndActivate()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 hover:opacity-95 text-white font-display font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Saya Setuju & Mulai Curhat</span>
+                </button>
+            </div>
+            
+            <p class="text-[10px] text-center text-slate-400">
+                Dengan menekan tombol di atas, kamu menyetujui penggunaan layanan konseling AI SMPN 29.
+            </p>
+        </div>
+    </div>
+
     <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-indigo-100 shadow-sm">
         <div class="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between">
             <div class="flex items-center space-x-3">
@@ -269,22 +306,22 @@
                 </button>
             </div>
             <p class="text-xs text-slate-600">
-                Jika jaringan otomatis sedang bermasalah, kamu bisa memasukkan API Key Gemini milikmu secara opsional untuk memastikan koneksi selalu lancar.
+                Masukkan Gemini API Key milik Anda di sini agar aplikasi dapat terhubung ke AI secara otomatis di perangkat ini.
             </p>
             <div class="space-y-2">
-                <label class="text-xs font-bold text-slate-700 block">Custom Gemini API Key (Opsional):</label>
-                <input type="password" id="customApiKey" placeholder="AIzaSy..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <label class="text-xs font-bold text-slate-700 block">Gemini API Key Anda:</label>
+                <input type="password" id="customApiKey" placeholder="Tempel API Key Gemini di sini (AIzaSy...)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="saveApiKey()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition">
-                    Simpan & Terapkan
+                    Simpan & Aktifkan Otomatis
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // System Prompt Guidelines for BK
+        // Internal System Prompt Guidelines for BK
         const GEMINI_SYSTEM_INSTRUCTION = `
         Anda adalah Kak Sahabat BK 29, AI Asisten Bimbingan Konseling (BK) di SMP Negeri 29 Banjarmasin.
         
@@ -296,13 +333,38 @@
         5. Bila siswa tampak sangat sedih atau ada tanda bahaya/depresi berat, berikan kalimat hangat dan sarankan berdiskusi langsung dengan Guru BK SMPN 29 atau orang tua.
         `;
 
+        // Encapsulated System Key (Hidden from User Interface)
+        const _SYS_BK_KEY = "AQ.Ab8RN6ICE1p_62rQK3oUfCzMnkOScWyoqADPRGWJDqaI_vzQHQ";
+
         let chatHistory = [];
         let currentMood = '';
 
+        // Check consent status on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const hasAgreed = localStorage.getItem('bk29_terms_agreed');
+            if (!hasAgreed) {
+                document.getElementById('consentModal').classList.remove('hidden');
+            } else {
+                document.getElementById('consentModal').classList.add('hidden');
+            }
+        });
+
+        function acceptTermsAndActivate() {
+            localStorage.setItem('bk29_terms_agreed', 'true');
+            document.getElementById('consentModal').classList.add('hidden');
+        }
+
         async function callGeminiAPI(payload, retries = 3, initialDelay = 1000) {
-            // Check for user-defined key in localStorage first
-            let userCustomKey = localStorage.getItem('sahabat_bk_apikey') || "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userCustomKey}`;
+            // Check if student has accepted terms
+            const hasAgreed = localStorage.getItem('bk29_terms_agreed');
+            if (!hasAgreed) {
+                document.getElementById('consentModal').classList.remove('hidden');
+                throw new Error("Wajib menyetujui ketentuan layanan terlebih dahulu.");
+            }
+
+            // Check for user custom key override or fallback to hidden system key
+            let activeKey = localStorage.getItem('sahabat_bk_apikey') || _SYS_BK_KEY;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${activeKey}`;
 
             updateConnectionStatus('loading', 'Menghubungkan AI...');
 
@@ -328,7 +390,6 @@
                     lastError = error;
                 }
 
-                // Exponential backoff delay
                 if (i < retries - 1) {
                     const backoffTime = initialDelay * Math.pow(2, i);
                     await new Promise(resolve => setTimeout(resolve, backoffTime));
@@ -341,6 +402,13 @@
 
         async function handleSendChat(e) {
             if (e) e.preventDefault();
+            
+            // Re-verify consent
+            if (!localStorage.getItem('bk29_terms_agreed')) {
+                document.getElementById('consentModal').classList.remove('hidden');
+                return;
+            }
+
             const inputEl = document.getElementById('chatInput');
             const btnSend = document.getElementById('btnSendChat');
             const userMsg = inputEl.value.trim();
@@ -387,12 +455,11 @@
             } catch (err) {
                 console.error("Chatbot Error Detail:", err);
                 removeTypingIndicator(typingId);
-                chatHistory.pop(); // Revert last user msg to keep history clean
+                chatHistory.pop();
 
                 appendChatMessage('ai', `
                     <b>Aduh, sambungan jaringan sedang sibuk/tidak stabil.</b><br>
-                    Jangan cemas ya! Silakan klik tombol <b>Kirim</b> sekali lagi. <br>
-                    <span class="text-xs text-slate-500 mt-1 block">💡 *Tips: Kamu juga bisa memasukkan API key sendiri via tombol ikon Setting ⚙️ di pojok kanan atas jika masalah berlanjut.*</span>
+                    Jangan cemas ya! Silakan tekan tombol <b>Kirim</b> sekali lagi. 🙏
                 `);
             } finally {
                 btnSend.disabled = false;
